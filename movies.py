@@ -1,231 +1,105 @@
 import random
-import os
 import statistics
-import movie_storage
+import movie_storage_sql as storage
+
+API_KEY = "PUT_YOUR_KEY_HERE"
 
 
-def print_title():
-    print("*" * 10, "My Movies Database", "*" * 10)
-    print()
+def command_list_movies():
+    movies = storage.list_movies()
+    print(f"\n{len(movies)} movies in total\n")
+    for title, info in movies.items():
+        print(f"{title} ({info['year']}): {info['rating']}")
+
+
+def command_add_movie():
+    title = input("Enter movie title: ").strip()
+    storage.add_movie_from_api(title, API_KEY)
+
+
+def command_delete_movie():
+    title = input("Title to delete: ").strip()
+    storage.delete_movie(title)
+
+
+def command_update_movie():
+    title = input("Title to update: ").strip()
+    rating = float(input("New rating: "))
+    storage.update_movie(title, rating)
+
+
+def command_stats():
+    movies = storage.list_movies()
+    ratings = [m["rating"] for m in movies.values()]
+
+    print(f"Average: {sum(ratings)/len(ratings):.2f}")
+    print(f"Median: {statistics.median(ratings)}")
+
+
+def command_random():
+    movies = storage.list_movies()
+    title = random.choice(list(movies.keys()))
+    print(title, movies[title])
+
+
+def generate_website():
+    movies = storage.list_movies()
+
+    with open("_static/index_template.html") as f:
+        html = f.read()
+
+    grid = ""
+    for title, info in movies.items():
+        grid += f"""
+        <li class="cards__item">
+          <img src="{info['poster']}"/>
+          <div class="card__title">{title}</div>
+          <p>Year: {info['year']}<br>Rating: {info['rating']}</p>
+        </li>
+        """
+
+    html = html.replace("__TEMPLATE_TITLE__", "My Movie App")
+    html = html.replace("__TEMPLATE_MOVIE_GRID__", grid)
+
+    with open("index.html", "w") as f:
+        f.write(html)
+
+    print("✅ Website was generated successfully.")
+
 
 def print_menu():
-    print("Menu:")
-    print("1. List movies")
-    print("2. Add movie")
-    print("3. Delete movie")
-    print("4. Update movie")
-    print("5. Stats")
-    print("6. Random movie")
-    print("7. Search movie")
-    print("8. Movies sorted by rating")
-    print("0. Quit")
-    print()
+    print("""
+1. List movies
+2. Add movie (API)
+3. Delete movie
+4. Update movie
+5. Stats
+6. Random movie
+9. Generate website
+0. Exit
+""")
 
-"""
-def handle_choice(choice,movies):
-    if choice == "1":
-        list_movies(movies)
-    elif choice == "2":
-        add_movie(movies)
-    elif choice == "3":
-        delete_movie(movies)
-    elif choice == "4":
-        update_movie(movies)
-    elif choice == "5":
-        stats(movies)
-    elif choice == "6":
-        random_movie(movies)
-    elif choice == "7":
-        search_movie(movies)
-    elif choice == "8":
-        movies_sorted_by_rating(movies)
-    elif choice == "0":
-        return False  # Quit
-    else:
-        print("Invalid choice. Please enter a number from 0 to 8.\n")
-    return True  
-"""
-def handle_choice(choice,movies):
-    if choice == "1":
-        list_movies(movies)
-    elif choice == "2":
-        movie_storage.add_movie(movies)
-    elif choice == "3":
-        movie_storage.delete_movie(movies)
-    elif choice == "4":
-        movie_storage.update_movie(movies)
-    elif choice == "5":
-        stats(movies)
-    elif choice == "6":
-        random_movie(movies)
-    elif choice == "7":
-        search_movie(movies)
-    elif choice == "8":
-        movies_sorted_by_rating(movies)
-    elif choice == "0":
-        return False  # Quit
-    else:
-        print("Invalid choice. Please enter a number from 0 to 8.\n")
-    return True  
-
-
-
-def list_movies(movies):
-    for i, (title, info) in enumerate(movies.items(), 1):
-        print(f"{i}. {title} – {info['year']} – Rating {info['rating']}")
-
-
-def add_movie(movies):
-    
-    title = input("Enter title: ").strip()
-    if len(title) == 0:
-        print("Title cannot be empty.\n")
-        return
-    if title in movies:
-        print(f"'{title}' already exists. Use Update to change the rating.\n")
-        return
-    rating = float(input("Enter rating: ").strip())
-    year = int(input("Enter year: ").strip())
-
-    # store as a nested dictionary
-    movies[title] = {
-        "year": year,
-        "rating": rating
-    }
-
-    print(f"Added '{title}' (Year: {year}, Rating: {rating}).\n")
-
-def delete_movie(movies):
-    title = input("Enter the exact title to delete: ").strip()
-    if title in movies:
-        del movies[title]
-        print(f"Deleted '{title}'.\n")
-    else:
-        print(f"Movie '{title}' not found.\n")
-
-def update_movie(movies):
-    title = input("Enter title to update score: ").strip()
-
-    if title not in movies:
-        print(f"Movie '{title}' not found.\n")
-        return
-
-    new_rating = float(input("Enter new rating (0-10): ").strip())
-
-    # update only the rating property
-    movies[title]["rating"] = new_rating
-
-    print(f"Updated '{title}' rating to {new_rating}.\n")
-
-def stats(movies):
-    if not movies:
-        print("No movies to compute stats.\n")
-        return
-
-    # Extract only the ratings
-    ratings = [info["rating"] for info in movies.values()]
-
-    avg = sum(ratings) / len(ratings)
-    med = statistics.median(ratings)
-
-    max_score = max(ratings)
-    min_score = min(ratings)
-
-    # Find all movies with highest rating
-    best_titles = [title for title, info in movies.items() if info["rating"] == max_score]
-
-    # Find all movies with lowest rating
-    worst_titles = [title for title, info in movies.items() if info["rating"] == min_score]
-
-    print(f"Total movies: {len(movies)}")
-    print(f"Average rating: {avg:.1f}")
-    print(f"Median rating: {med:.1f}")
-    print(f"Best: {', '.join(best_titles)}, Score: {max_score}")
-    print(f"Worst: {', '.join(worst_titles)}, Score: {min_score}")
-
-
-def random_movie(movies):
-    if len(movies) == 0:
-        print("No movies in the database.\n")
-    movie = random.choice(list(movies.keys()))
-    info = movies[movie]
-
-    print(f"Random pick: {movie}, {info['year']}, {info['rating']}")
-
-def search_movie(movies):
-    q = input("Enter the title of the movie: ").strip().lower()
-    if len(q) == 0:
-        print("Empty query.\n")
-        return
-
-    found = False
-    for title, rating in movies.items():
-        if q in title.lower():
-            print(f"- {title}: {rating}")
-            found = True
-
-    if not found:
-        print("No matches.")
-
-
-
-def movies_sorted_by_rating(movies):
-    if not movies:
-        print("No movies in the database.\n")
-        return
-
-    movie_list = [(title, info["rating"], info["year"]) for title, info in movies.items()]
-    for i in range(len(movie_list)):
-        for j in range(i + 1, len(movie_list)):
-            if movie_list[i][1] < movie_list[j][1]:
-                movie_list[i], movie_list[j] = movie_list[j], movie_list[i]
-    for title, rating, year in movie_list:
-        print(f"{rating}  {title} ({year})")
-
-def pre_menu_prompt():
-    while True:
-        ans = input("Type 'm' to open the menu or 'q' to quit: ").strip().lower()
-        if ans == 'q':
-            return False
-        if ans == 'm':
-            return True
-        print("Please type 'm' or 'q'.")
-
-
-def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
 
 def main():
-    # Dictionary to store the movies and the rating
-    """
-    movies = {
-    "The Shawshank Redemption":{"year": 1994, "rating": 9.3},
-    "The Shawshank Redemption 2":{"year": 1994, "rating": 9.3},
-    "Pulp Fiction": {"year": 1994, "rating": 8.8},
-    "The Godfather": {"year": 1972, "rating": 9.2},
-    "The Godfather: Part II": {"year": 1974, "rating": 9.0},
-    "The Dark Knight": {"year": 2008, "rating": 9.0},
-    "12 Angry Men": {"year": 1957, "rating": 9.0},
-    "Everything Everywhere All at Once":{"year": 2022, "rating": 8.5},
-    "Forrest Gump": {"year": 1994, "rating": 8.8},
-    "Star Wars: Episode V – The Empire Strikes Back": {"year": 1980, "rating": 8.7},
-}
-    """
-    movies = movie_storage.get_movies()
-    #print(movies)
     while True:
-        print_title()
-        #print()
-        #clear_screen()
-
         print_menu()
-        choice = input("Enter choice (0-8): ").strip()
-        if not handle_choice(choice,movies):
-            print("Goodbye!")
-            break
-            clear_screen()
-        if not pre_menu_prompt():
-            print("Goodbye!")
+        c = input("Choice: ")
+
+        if c == "1":
+            command_list_movies()
+        elif c == "2":
+            command_add_movie()
+        elif c == "3":
+            command_delete_movie()
+        elif c == "4":
+            command_update_movie()
+        elif c == "5":
+            command_stats()
+        elif c == "6":
+            command_random()
+        elif c == "9":
+            generate_website()
+        elif c == "0":
             break
 
 
