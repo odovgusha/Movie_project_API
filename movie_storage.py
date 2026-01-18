@@ -1,91 +1,110 @@
-import json
+from sqlalchemy import create_engine, text
+import requests
 
-MOVIES_FILE = "movies.json"
+# Create SQLite DB file automatically
+engine = create_engine("sqlite:///movies.db", echo=True)
+
+# Create table (only once)
+with engine.connect() as conn:
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS movies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT UNIQUE,
+            year INTEGER,
+            rating REAL,
+            poster TEXT
+        )
+    """))
+    conn.commit()
 
 
-
-def get_movies():
+def list_movies():
     """
-    Returns a dictionary of dictionaries that
-    contains the movies information in the database.
+    Read movies from database
+    """
+    with engine.connect() as conn:
+        result = conn.execute(text(
+            "SELECT title, year, rating, poster FROM movies"
+        ))
+        rows = result.fetchall()
 
-    The function loads the information from the JSON
-    file and returns the data. 
-
-    For example, the function may return:
-    {
-      "Titanic": {
-        "rating": 9,
-        "year": 1999
-      },
-      "..." {
-        ...
-      },
+    # Convert SQL rows → dictionary
+    return {
+        row[0]: {
+            "year": row[1],
+            "rating": row[2],
+            "poster": row[3]
+        }
+        for row in rows
     }
+
+
+def add_movie_from_api(title, api_key):
     """
-    with open(MOVIES_FILE, "r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def save_movies(movies):
+    Fetch movie data from OMDb API
+    and store locally
     """
-    Gets all your movies as an argument and saves them to the JSON file.
-    Assumes the JSON file already exists.
-    """
-    with open(MOVIES_FILE, "w", encoding="utf-8") as file:
-        json.dump(movies, file, indent=4)
+    url = f"http://www.omdbapi.com/?apikey={api_key}&t={title}"
+    data = requests.get(url).json()
 
-
-def add_movie(movies):
-    
-    title = input("Enter title: ").strip()
-    if len(title) == 0:
-        print("Title cannot be empty.\n")
+    if data["Response"] == "False":
+        print("Movie not found.")
         return
-    if title in movies:
-        print(f"'{title}' already exists. Use Update to change the rating.\n")
-        return
-    rating = float(input("Enter rating: ").strip())
-    year = int(input("Enter year: ").strip())
 
-    # store as a nested dictionary
-    movies[title] = {
-        "year": year,
-        "rating": rating
-    }
-    save_movies(movies)
-    print(f"Added '{title}' (Year: {year}, Rating: {rating}).\n")
+    # Extract from API
+    title = data["Title"]
+    year = int(data["Year"][:4])
+    rating = float(data["imdbRating"])
+    poster = data["Poster"]
+
+    # Insert into database
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("""
+                INSERT INTO movies (title, year, rating, poster)
+                VALUES (:t, :y, :r, :p)
+            """), {
+                "t": title,
+                "y": year,
+                "r": rating,
+                "p": poster
+            })
+            conn.commit()
+            print("Movie added.")
+        except:
+            print("Movie already exists.")
 
 
+def delete_movie(title):
+    """
+    Remove movie from DB
+    """
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("DELETE FROM movies WHERE title=:t"),
+            {"t": title}
+        )
+        conn.commit()
 
-
-
-def delete_movie(movies):
-    title = input("Enter the exact title to delete: ").strip()
-    if title in movies:
-        del movies[title]
-        print(f"Deleted '{title}'.\n")
+    if result.rowcount == 0:
+        print("Movie not found.")
     else:
-        print(f"Movie '{title}' not found.\n")
-
-    save_movies(movies)
+        print("Movie deleted.")
 
 
+def update_movie(title, rating):
+    """
+    Update rating
+    """
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            UPDATE movies
+            SET rating=:r
+            WHERE title=:t
+        """), {"r": rating, "t": title})
+        conn.commit()
 
-
-def update_movie(movies):
-    title = input("Enter title to update score: ").strip()
-
-    if title not in movies:
-        print(f"Movie '{title}' not found.\n")
-        return
-
-    new_rating = float(input("Enter new rating (0-10): ").strip())
-
-    # update only the rating property
-    movies[title]["rating"] = new_rating
-    
-    save_movies(movies)
-    
-    print(f"Updated '{title}' rating to {new_rating}.\n")
-  
+    if result.rowcount == 0:
+        print("Movie not found.")
+    else:
+        print("Rating updated.")
