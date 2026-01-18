@@ -1,0 +1,42 @@
+{
+    "The Shawshank Redemption": {
+        "year": 1994,
+        "rating": 9.3
+    },
+    "The Shawshank Redemption 2": {
+        "year": 1994,
+        "rating": 9.3
+    },
+    "Pulp Fiction": {
+        "year": 1994,
+        "rating": 8.8
+    },
+    "The Godfather": {
+        "year": 1972,
+        "rating": 9.2
+    },
+    "The Godfather: Part II": {
+        "year": 1974,
+        "rating": 9.0
+    },
+    "The Dark Knight": {
+        "year": 2008,
+        "rating": 9.0
+    },
+    "12 Angry Men": {
+        "year": 1957,
+        "rating": 9.0
+    },
+    "Everything Everywhere All at Once": {
+        "year": 2022,
+        "rating": 8.5
+    },
+    "Forrest Gump": {
+        "year": 1994,
+        "rating": 8.8
+    },
+    "Star Wars: Episode V \u2013 The Empire Strikes Back": {
+        "year": 1980,
+        "rating": 8.7
+    }
+}
