@@ -6,11 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
-# =========================
-# COMMANDS
-# =========================
-
 def list_movies():
     movies = storage.get_movies()
     print(f"\n{len(movies)} movies in total\n")
@@ -55,7 +50,8 @@ def random_movie():
         return
 
     title = random.choice(list(movies.keys()))
-    print(title, movies[title])
+    print(title,
+    f"\nYear: {movies[title]["year"]} \nRating: {movies[title]["rating"]}")
 
 
 def search_movie():
@@ -91,25 +87,23 @@ def generate_website():
     grid = ""
     for title, info in movies.items():
         grid += f"""
-        <li class="cards__item">
-            <img src="{info['poster']}"/>
-            <div class="card__title">{title}</div>
-            <p>Year: {info['year']}<br>Rating: {info['rating']}</p>
+        <li>
+            <div class="movie">
+                <img class="movie-poster" src="{info['poster']}" alt="{title} poster"/>
+                <div class="movie-title">{title}</div>
+                <div class="movie-year">{info['year']} • ⭐ {info['rating']}</div>
+            </div>
         </li>
         """
 
     html = html.replace("__TEMPLATE_TITLE__", "My Movie App")
     html = html.replace("__TEMPLATE_MOVIE_GRID__", grid)
 
-    with open("index.html", "w", encoding="utf-8") as f:
+    with open("_static/index.html", "w", encoding="utf-8") as f:
         f.write(html)
 
     print("Website was generated successfully.")
 
-
-# =========================
-# MENU
-# =========================
 
 def print_menu():
     print("""

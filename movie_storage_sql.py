@@ -2,12 +2,8 @@ from sqlalchemy import create_engine, text
 import requests
 import os
 
-# =========================
-# DATABASE SETUP
-# =========================
-
 DB_URL = "sqlite:///movies.db"
-engine = create_engine(DB_URL, echo=True)
+engine = create_engine(DB_URL, echo=False)
 
 # Create table once
 with engine.connect() as conn:
@@ -21,12 +17,6 @@ with engine.connect() as conn:
         )
     """))
     conn.commit()
-
-
-# =========================
-# CORE STORAGE API
-# (JSON-compatible interface)
-# =========================
 
 def get_movies():
     """
@@ -132,11 +122,6 @@ def update_movie(title, rating):
         print("Movie not found.")
     else:
         print(f"'{title}' updated.")
-
-
-# =========================
-# EXTRA DB QUERIES
-# =========================
 
 def search_movies(query):
     """
