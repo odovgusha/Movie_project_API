@@ -2,7 +2,7 @@ import random
 import statistics
 import movie_storage_sql as storage
 
-API_KEY = "PUT_YOUR_KEY_HERE"
+
 
 
 def command_list_movies():
@@ -75,7 +75,7 @@ def print_menu():
 4. Update movie
 5. Stats
 6. Random movie
-9. Generate website
+7. Generate website
 0. Exit
 """)
 
@@ -97,7 +97,7 @@ def main():
             command_stats()
         elif c == "6":
             command_random()
-        elif c == "9":
+        elif c == "7":
             generate_website()
         elif c == "0":
             break
