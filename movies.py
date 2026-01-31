@@ -16,16 +16,25 @@ def list_movies():
 
 def add_movie():
     title = input("Enter movie title: ").strip()
+    if not title:
+        print("No title entered. Please provide a movie title.")
+        return  # exit the function early
     storage.add_movie(title)
 
 
 def delete_movie():
     title = input("Title to delete: ").strip()
+    if not title:
+        print("No title entered. Please provide a movie title.")
+        return  # exit the function early
     storage.delete_movie(title)
 
 
 def update_movie():
     title = input("Title to update: ").strip()
+    if not title:
+        print("No title entered. Please provide a movie title.")
+        return  # exit the function early
     rating = float(input("New rating: "))
     storage.update_movie(title, rating)
 
@@ -50,8 +59,7 @@ def random_movie():
         return
 
     title = random.choice(list(movies.keys()))
-    print(title,
-    f"\nYear: {movies[title]["year"]} \nRating: {movies[title]["rating"]}")
+    print(title, f"({movies[title]["year"]}): {movies[title]["rating"]}")
 
 
 def search_movie():
