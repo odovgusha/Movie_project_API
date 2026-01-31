@@ -1,10 +1,15 @@
 from sqlalchemy import create_engine, text
 import requests
+import os
+
+# =========================
+# DATABASE SETUP
+# =========================
 
 DB_URL = "sqlite:///movies.db"
 engine = create_engine(DB_URL, echo=True)
 
-# Create table (with poster column)
+# Create table once
 with engine.connect() as conn:
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS movies (
@@ -18,73 +23,152 @@ with engine.connect() as conn:
     conn.commit()
 
 
-def list_movies():
-    """Retrieve all movies from DB."""
+# =========================
+# CORE STORAGE API
+# (JSON-compatible interface)
+# =========================
+
+def get_movies():
+    """
+    Load all movies from the database.
+    Replacement for JSON get_movies().
+    """
     with engine.connect() as conn:
-        result = conn.execute(text(
+        res = conn.execute(text(
             "SELECT title, year, rating, poster FROM movies"
         ))
-        rows = result.fetchall()
+        rows = res.fetchall()
 
     return {
-        row[0]: {"year": row[1], "rating": row[2], "poster": row[3]}
-        for row in rows
+        title: {
+            "year": year,
+            "rating": rating,
+            "poster": poster
+        }
+        for title, year, rating, poster in rows
     }
 
 
-def add_movie_from_api(title, api_key):
-    """Fetch movie from OMDb and store in DB."""
+def save_movies(_movies=None):
+    """
+    No-op for SQL storage.
+    Exists only to keep the same API
+    as the JSON version.
+    """
+    pass
+
+
+def add_movie(title):
+    """
+    Add a movie using OMDb API.
+    """
+    api_key = os.getenv("API_KEY")
+
+    if not api_key:
+        print("API_KEY not found.")
+        return
+
     url = f"http://www.omdbapi.com/?apikey={api_key}&t={title}"
+
     try:
-        res = requests.get(url, timeout=5)
-        data = res.json()
+        data = requests.get(url, timeout=5).json()
     except Exception:
-        print("❌ API connection error.")
+        print("API connection error.")
         return
 
     if data.get("Response") == "False":
-        print("❌ Movie not found.")
+        print("Movie not found.")
         return
 
-    title = data["Title"]
-    year = int(data["Year"][:4])
-    rating = float(data["imdbRating"])
-    poster = data["Poster"]
+    movie = {
+        "title": data["Title"],
+        "year": int(data["Year"][:4]),
+        "rating": float(data["imdbRating"]) if data["imdbRating"] != "N/A" else 0.0,
+        "poster": data.get("Poster", "")
+    }
 
     with engine.connect() as conn:
         try:
             conn.execute(text("""
                 INSERT INTO movies (title, year, rating, poster)
-                VALUES (:t, :y, :r, :p)
-            """), {"t": title, "y": year, "r": rating, "p": poster})
+                VALUES (:title, :year, :rating, :poster)
+            """), movie)
             conn.commit()
-            print(f"✅ '{title}' added successfully.")
+            print(f"'{movie['title']}' added successfully.")
         except Exception:
-            print("❌ Movie already exists.")
+            print("Movie already exists.")
 
 
 def delete_movie(title):
+    """
+    Delete a movie by title.
+    """
     with engine.connect() as conn:
         res = conn.execute(
-            text("DELETE FROM movies WHERE title=:t"),
+            text("DELETE FROM movies WHERE title = :t"),
             {"t": title}
         )
         conn.commit()
 
     if res.rowcount == 0:
-        print("❌ Movie not found.")
+        print("Movie not found.")
     else:
-        print(f"✅ '{title}' deleted.")
+        print(f"'{title}' deleted.")
 
 
 def update_movie(title, rating):
+    """
+    Update movie rating.
+    """
     with engine.connect() as conn:
         res = conn.execute(text("""
-            UPDATE movies SET rating=:r WHERE title=:t
+            UPDATE movies
+            SET rating = :r
+            WHERE title = :t
         """), {"r": rating, "t": title})
         conn.commit()
 
     if res.rowcount == 0:
-        print("❌ Movie not found.")
+        print("Movie not found.")
     else:
-        print(f"✅ '{title}' updated.")
+        print(f"'{title}' updated.")
+
+
+# =========================
+# EXTRA DB QUERIES
+# =========================
+
+def search_movies(query):
+    """
+    Search movies by partial title.
+    """
+    with engine.connect() as conn:
+        res = conn.execute(text("""
+            SELECT title, year, rating, poster
+            FROM movies
+            WHERE title LIKE :q
+        """), {"q": f"%{query}%"})
+        rows = res.fetchall()
+
+    return {
+        t: {"year": y, "rating": r, "poster": p}
+        for t, y, r, p in rows
+    }
+
+
+def movies_sorted_by_rating():
+    """
+    Return movies sorted by rating (DESC).
+    """
+    with engine.connect() as conn:
+        res = conn.execute(text("""
+            SELECT title, year, rating, poster
+            FROM movies
+            ORDER BY rating DESC
+        """))
+        rows = res.fetchall()
+
+    return {
+        t: {"year": y, "rating": r, "poster": p}
+        for t, y, r, p in rows
+    }
